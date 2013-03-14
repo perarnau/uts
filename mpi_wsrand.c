@@ -94,7 +94,7 @@ void ss_abort(int error)
 
 char * ss_get_par_description()
 {
-	return "MPI Workstealing (Round Robin)";
+	return "MPI Workstealing (Rand)";
 }
 
 /** Make progress on any outstanding WORKREQUESTs or WORKRESPONSEs */
@@ -206,9 +206,10 @@ int ensureLocalWork(StealStack *s)
 			}
 		
 			/* Send the request and wait for a work response */
-			last_steal = (last_steal + 1) % comm_size;
-			if (last_steal == comm_rank) last_steal = (last_steal + 1) % comm_size;
-
+			/* we are lucky, this is not biased if comm_size is a power of two. */
+			do {	
+			last_steal = rand()%comm_size;
+			} while(last_steal == comm_rank);
 			DEBUG(DBG_CHUNK, printf("Thread %d: Asking thread %d for work\n", comm_rank, last_steal));
 			if(currentstatus == 0)
 				fprintf(trace,"%f i\n",MPI_Wtime());
@@ -257,7 +258,7 @@ int ensureLocalWork(StealStack *s)
 				s->nSteal++;    
 				s->localWork += s->chunk_size;
 				deq_pushBack(localQueue, node);
-				fprintf(trace,"%f w\n",MPI_Wtime());
+ 				fprintf(trace,"%f w\n",MPI_Wtime());
 				currentstatus = 0;
 #ifdef TRACE
 				/* Successful Steal */
@@ -267,7 +268,7 @@ int ensureLocalWork(StealStack *s)
 			else {
 				// Received "No Work" message
 				++ctrl_recvd;
- 				s->nFail++;
+				s->nFail++;
 				currentstatus = 2;
 			}
 	

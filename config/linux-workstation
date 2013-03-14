@@ -7,22 +7,28 @@ TARGETS_ALL = uts-seq uts-stat time_rng uts-pthread
 # C Compiler 
 # -------------------------------------
 CC = gcc
-CC_OPTS = -O3
+CC_OPTS = -O3 -std=c99
 LD_OPTS = -lm
 
 # -------------------------------------
 # MPI Compiler 
 # -------------------------------------
+<<<<<<< HEAD
 MPICC = false
 MPICC_OPTS = 
 MPILD_OPTS = 
+=======
+MPICC = mpicc
+MPICC_OPTS = -O3 -std=c99
+MPILD_OPTS = -lm 
+>>>>>>> 4389937... Init
 
 
 # -------------------------------------
 # UPC Compiler 
 # -------------------------------------
-UPCC = false
-UPCC_OPTS = 
+UPCC = /home/perarnau/Downloads/berkeley_upc-2.16.0/build/upcc
+UPCC_OPTS = -network=mpi 
 UPCLD_OPTS = 
 
 

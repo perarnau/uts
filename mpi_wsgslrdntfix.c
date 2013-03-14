@@ -12,12 +12,16 @@
  *  State University.  See AUTHORS file for more information.
  *
  */
-#include <unistd.h>
+#include <assert.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
 #include <mpi.h>
+#include <mpi-ext.h>
+#include <math.h>
 #include "uts_dm.h"
 #include "dequeue.h"
 #include "ctrk.h"
@@ -78,8 +82,12 @@ static void       *iw_buff;         // Buffer to receive incoming work
 static td_token_t  td_token;        // Dijkstra's token
 
 
-static FILE *trace;
-static int currentstatus; // 0 work, 1 idle, 2 nowork
+/** array of possible victims **/
+static int *victims;
+static double *weights;
+static gsl_rng *rng;
+static gsl_ran_discrete_t *table;
+
 /*********************************************************
  *  functions                                            *
  *********************************************************/
@@ -94,7 +102,7 @@ void ss_abort(int error)
 
 char * ss_get_par_description()
 {
-	return "MPI Workstealing (Round Robin)";
+	return "MPI Workstealing (GSL Tofu weights)";
 }
 
 /** Make progress on any outstanding WORKREQUESTs or WORKRESPONSEs */
@@ -206,13 +214,11 @@ int ensureLocalWork(StealStack *s)
 			}
 		
 			/* Send the request and wait for a work response */
-			last_steal = (last_steal + 1) % comm_size;
-			if (last_steal == comm_rank) last_steal = (last_steal + 1) % comm_size;
-
+			last_steal = gsl_ran_discrete(rng,table);
+			assert(last_steal >= 0 && last_steal <= comm_size -1);
+			last_steal = victims[last_steal];
+			assert(last_steal != comm_rank);
 			DEBUG(DBG_CHUNK, printf("Thread %d: Asking thread %d for work\n", comm_rank, last_steal));
-			if(currentstatus == 0)
-				fprintf(trace,"%f i\n",MPI_Wtime());
-			currentstatus = 1;
 			++ctrl_sent;
 
 			MPI_Isend(&wrout_buff, 1, MPI_LONG, last_steal, MPIWS_WORKREQUEST, MPI_COMM_WORLD, &wrout_request);
@@ -257,8 +263,6 @@ int ensureLocalWork(StealStack *s)
 				s->nSteal++;    
 				s->localWork += s->chunk_size;
 				deq_pushBack(localQueue, node);
-				fprintf(trace,"%f w\n",MPI_Wtime());
-				currentstatus = 0;
 #ifdef TRACE
 				/* Successful Steal */
 				ss_markSteal(s, status.MPI_SOURCE);
@@ -267,8 +271,7 @@ int ensureLocalWork(StealStack *s)
 			else {
 				// Received "No Work" message
 				++ctrl_recvd;
- 				s->nFail++;
-				currentstatus = 2;
+				s->nFail++;
 			}
 	
 			// Clear on the outgoing work_request
@@ -442,19 +445,35 @@ StealStack* ss_init(int *argc, char ***argv)
 
 	// Set a default polling interval
 	polling_interval = pollint_default;
-	
-	char name[80];
-	snprintf(name,80,"%s.%d.trace.%d",__FILE__,comm_size,comm_rank);
-	trace = fopen(name,"w+");
-	MPI_Barrier(MPI_COMM_WORLD);
-	fprintf(trace,"%f s\n",MPI_Wtime());
-	if(!comm_rank)
+
+	// allocate & init the victim array
+	victims = malloc((comm_size -1) * sizeof(int));
+	for(int i = 0, j = 0; i < comm_size; i++)
+		if(i != comm_rank)
+			victims[j++] = i;
+	// compute weights, using the tofu coords
+	int mx,my,mz,ma,mb,mc;
+	FJMPI_Topology_sys_rank2xyzabc(comm_rank,&mx,&my,&mz,&ma,&mb,&mc);
+	weights = malloc((comm_size -1) * sizeof(double));
+	for(int i = 0 ; i < comm_size-1; i++)
 	{
-		fprintf(trace,"%f w\n",MPI_Wtime());
-		currentstatus = 0;
+		//find coords of this rank
+		int x,y,z,a,b,c;
+		FJMPI_Topology_sys_rank2xyzabc(victims[i],&x,&y,&z,&a,&b,&c);
+		// compute euclidian distance between nodes	
+		double d = pow(mx - x,2) + pow(my - y,2) + pow(mz - z,2) + pow(ma - a,2) + pow(mb - b,2)
+				+ pow(mc - c,2);
+		if(d < 1.0)
+			d = 1.0;
+		else
+			d = sqrt(d);
+		weights[i] = 1.0/d;
 	}
-	else
-		currentstatus = 1;
+	gsl_rng_env_setup();
+	const gsl_rng_type *T = gsl_rng_default;
+	rng = gsl_rng_alloc(T);
+	table = gsl_ran_discrete_preproc(comm_size-1,weights);
+
 	return s;
 }
 
@@ -515,9 +534,6 @@ void ss_stop()
 
 void ss_finalize()
 {
-	fflush(trace);
-	fsync(fileno(trace));
-	fclose(trace);
 	MPI_Finalize();
 }
 

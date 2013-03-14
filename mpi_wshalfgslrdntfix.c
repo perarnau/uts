@@ -12,15 +12,19 @@
  *  State University.  See AUTHORS file for more information.
  *
  */
-#include <unistd.h>
+
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <mpi.h>
+#include <mpi-ext.h>
 #include "uts_dm.h"
 #include "dequeue.h"
 #include "ctrk.h"
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
+#include <math.h>
 
 #define DBG_GEN    1
 #define DBG_CHUNK  2
@@ -74,12 +78,19 @@ static MPI_Request  td_request;    // Term. Detection listener
 /** Global Communication Buffers **/
 static long        wrin_buff;       // Buffer for accepting incoming work requests
 static long        wrout_buff;      // Buffer to send outgoing work requests
-static void       *iw_buff;         // Buffer to receive incoming work
 static td_token_t  td_token;        // Dijkstra's token
 
+/* BIG one-time allocated buffer to send/receive work */
+static char *iwbuff;
+static char *owbuff;
+#define WORKBUF_SIZE 10000 // in chunk number
 
-static FILE *trace;
-static int currentstatus; // 0 work, 1 idle, 2 nowork
+/** array of possible victims **/
+static int *victims;
+static double *weights;
+static gsl_rng *rng;
+static gsl_ran_discrete_t *table;
+
 /*********************************************************
  *  functions                                            *
  *********************************************************/
@@ -94,7 +105,7 @@ void ss_abort(int error)
 
 char * ss_get_par_description()
 {
-	return "MPI Workstealing (Round Robin)";
+	return "MPI Workstealing (Half GSL Distance Tofu)";
 }
 
 /** Make progress on any outstanding WORKREQUESTs or WORKRESPONSEs */
@@ -119,12 +130,17 @@ void ws_make_progress(StealStack *s)
 		
 		/* Check if we have any surplus work */
 		if (s->localWork > 2*s->chunk_size) {
-			work = release(s);
-			DEBUG(DBG_CHUNK, printf(" -Thread %d: Releasing a chunk to thread %d\n", comm_rank, index));
-			++chunks_sent;
-			MPI_Send(work, s->chunk_size*s->work_size, MPI_BYTE, index,
+			size_t tosend = (s->localWork/s->chunk_size)/2;
+			for(int i = 0; i < tosend; i++)
+			{
+				work = release(s);
+				DEBUG(DBG_CHUNK, printf(" -Thread %d: Releasing a chunk to thread %d\n", comm_rank, index));
+				++chunks_sent;
+				memcpy(owbuff+i*s->work_size*s->chunk_size,work,s->work_size*s->chunk_size);
+				free(work);
+			}
+			MPI_Send(owbuff, s->chunk_size*s->work_size*tosend, MPI_BYTE, index,
 				MPIWS_WORKRESPONSE, MPI_COMM_WORLD);
-			free(work);
 
 			/* If a node to our left steals from us, our color becomes black */
 			if (index < comm_rank) my_color = BLACK;
@@ -199,24 +215,17 @@ int ensureLocalWork(StealStack *s)
 		
 		/* Check if we should post another steal request */
 		if (wrout_request == MPI_REQUEST_NULL && my_color != PINK) {
-			if (iw_buff == NULL) {
-				iw_buff = malloc(s->chunk_size*s->work_size);
-				if (!iw_buff)
-					ss_error("ensureLocalWork(): Out of memory\n", 5);
-			}
 		
 			/* Send the request and wait for a work response */
-			last_steal = (last_steal + 1) % comm_size;
-			if (last_steal == comm_rank) last_steal = (last_steal + 1) % comm_size;
+			/* we are lucky, this is not biased if comm_size is a power of two. */
+ 			last_steal = gsl_ran_discrete(rng,table);
+ 			last_steal = victims[last_steal];
 
 			DEBUG(DBG_CHUNK, printf("Thread %d: Asking thread %d for work\n", comm_rank, last_steal));
-			if(currentstatus == 0)
-				fprintf(trace,"%f i\n",MPI_Wtime());
-			currentstatus = 1;
 			++ctrl_sent;
 
 			MPI_Isend(&wrout_buff, 1, MPI_LONG, last_steal, MPIWS_WORKREQUEST, MPI_COMM_WORLD, &wrout_request);
-			MPI_Irecv(iw_buff, s->chunk_size*s->work_size, MPI_BYTE, last_steal, MPIWS_WORKRESPONSE,
+			MPI_Irecv(iwbuff, s->chunk_size*s->work_size*WORKBUF_SIZE, MPI_BYTE, last_steal, MPIWS_WORKRESPONSE,
 					MPI_COMM_WORLD, &iw_request);
 		}
 
@@ -232,33 +241,30 @@ int ensureLocalWork(StealStack *s)
 			MPI_Get_count(&status, MPI_BYTE, &work_rcv);
 		
 			if (work_rcv > 0) {
-				StealStackNode *node;
-		
-				++chunks_recvd;
-				DEBUG(DBG_CHUNK, printf(" -Thread %d: Incoming Work received, %d bytes\n", comm_rank, work_rcv));
-	
-				if (work_rcv != s->work_size * s->chunk_size) {
-					ss_error("ws_make_progress(): Work received size does not equal chunk size", 10);
+				while(work_rcv > 0)
+				{
+					StealStackNode *node;
+
+					++chunks_recvd;
+					DEBUG(DBG_CHUNK, printf(" -Thread %d: Incoming Work received, %d bytes\n", comm_rank, work_rcv));
+					/* Create a new node to attach this work to */
+					node = (StealStackNode*)malloc(sizeof(StealStackNode));
+
+					if (!node)
+						ss_error("ensureLocalWork(): Out of virtual memory.", 10);
+
+					node->head = s->chunk_size;
+					node->work = malloc(s->chunk_size * s->work_size);
+					work_rcv -= s->chunk_size*s->work_size;
+					memcpy(node->work,(iwbuff+work_rcv),s->chunk_size*s->work_size);
+
+					ctrk_get(comm_rank, node->work);
+
+					/* Push stolen work onto the back of the queue */
+					s->nSteal++;    
+					s->localWork += s->chunk_size;
+					deq_pushBack(localQueue, node);
 				}
-	
-				/* Create a new node to attach this work to */
-				node = (StealStackNode*)malloc(sizeof(StealStackNode));
-	
-				if (!node)
-					ss_error("ensureLocalWork(): Out of virtual memory.", 10);
-	
-				node->head = s->chunk_size;
-				node->work = iw_buff;
-				iw_buff    = NULL;
-	
-				ctrk_get(comm_rank, node->work);
-	
-				/* Push stolen work onto the back of the queue */
-				s->nSteal++;    
-				s->localWork += s->chunk_size;
-				deq_pushBack(localQueue, node);
-				fprintf(trace,"%f w\n",MPI_Wtime());
-				currentstatus = 0;
 #ifdef TRACE
 				/* Successful Steal */
 				ss_markSteal(s, status.MPI_SOURCE);
@@ -267,8 +273,7 @@ int ensureLocalWork(StealStack *s)
 			else {
 				// Received "No Work" message
 				++ctrl_recvd;
- 				s->nFail++;
-				currentstatus = 2;
+				s->nFail++;
 			}
 	
 			// Clear on the outgoing work_request
@@ -442,19 +447,34 @@ StealStack* ss_init(int *argc, char ***argv)
 
 	// Set a default polling interval
 	polling_interval = pollint_default;
-	
-	char name[80];
-	snprintf(name,80,"%s.%d.trace.%d",__FILE__,comm_size,comm_rank);
-	trace = fopen(name,"w+");
-	MPI_Barrier(MPI_COMM_WORLD);
-	fprintf(trace,"%f s\n",MPI_Wtime());
-	if(!comm_rank)
+
+	// allocate & init the victim array
+	victims = malloc((comm_size -1) * sizeof(int));
+	for(int i = 0, j = 0; i < comm_size; i++)
+		if(i != comm_rank)
+			victims[j++] = i;
+	// compute weights, using the tofu coords
+	int mx,my,mz,ma,mb,mc;
+	FJMPI_Topology_sys_rank2xyzabc(comm_rank,&mx,&my,&mz,&ma,&mb,&mc);
+	weights = malloc((comm_size -1) * sizeof(double));
+	for(int i = 0 ; i < comm_size-1; i++)
 	{
-		fprintf(trace,"%f w\n",MPI_Wtime());
-		currentstatus = 0;
+		//find coords of this rank
+		int x,y,z,a,b,c;
+		FJMPI_Topology_sys_rank2xyzabc(victims[i],&x,&y,&z,&a,&b,&c);
+		// compute euclidian distance between nodes	
+		double d = pow(mx - x,2) + pow(my - y,2) + pow(mz - z,2) + pow(ma - a,2) + pow(mb - b,2)
+				+ pow(mc - c,2);
+		if(d < 1.0)
+			d = 1.0;
+		else
+			d = sqrt(d);
+		weights[i] = 1.0/d;
 	}
-	else
-		currentstatus = 1;
+	gsl_rng_env_setup();
+	const gsl_rng_type *T = gsl_rng_default;
+	rng = gsl_rng_alloc(T);
+	table = gsl_ran_discrete_preproc(comm_size-1,weights);
 	return s;
 }
 
@@ -471,11 +491,13 @@ int ss_start(int work_size, int chunk_size)
 	wrout_buff    = chunk_size;
 	last_steal    = comm_rank;
 	iw_request    = MPI_REQUEST_NULL;
-	iw_buff       = NULL; // Allocated on demand
 	chunks_sent   = 0;
 	chunks_recvd  = 0;
 	ctrl_sent     = 0;
 	ctrl_recvd    = 0;
+
+	iwbuff = calloc(chunk_size*work_size*WORKBUF_SIZE,sizeof(char));
+	owbuff = calloc(chunk_size*work_size*WORKBUF_SIZE,sizeof(char));
 
 	// Using adaptive polling interval?
 	if (polling_interval == 0) {
@@ -515,9 +537,6 @@ void ss_stop()
 
 void ss_finalize()
 {
-	fflush(trace);
-	fsync(fileno(trace));
-	fclose(trace);
 	MPI_Finalize();
 }
 

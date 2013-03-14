@@ -46,6 +46,10 @@ RNG_INCL= rng/alfg.h
 RNG_DEF = -DUTS_ALFG
 endif
 
+GSL_FLAGS=$(shell pkg-config --libs gsl)
+GSL_FLAGS+= $(shell pkg-config --cflags gsl)
+
+
 # ------------------------------------- #
 # Targets:
 # ------------------------------------- #
@@ -81,6 +85,8 @@ uts-stat: $(SHM_SRCS) $(RNG_SRC) $(COMMON_SRCS)
 time_rng:  time_rng.c $(RNG_SRC) $(COMMON_SRCS)
 	$(CC) $(CC_OPTS) $(RNG_DEF) -o $@ $+ $(LD_OPTS)
 
+mpi-coords: mpi_coords.c
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) -o $@ $+
 
 ########## Distributed Memory Model Implementations ##########
 
@@ -94,6 +100,27 @@ uts-mpi-wm-nb: $(DM_SRCS) $(QUEUE_SRCS) mpi_worksharing.c $(RNG_SRC) $(COMMON_SR
 
 uts-mpi-ws: $(DM_SRCS) $(QUEUE_SRCS) mpi_workstealing.c $(RNG_SRC) $(COMMON_SRCS)
 	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+ 
+
+uts-mpi-ws-rand: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsrand.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+ 
+
+uts-mpi-ws-half: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+ 
+
+uts-mpi-ws-half-rand: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfrand.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+ 
+
+uts-mpi-ws-half-gslrd: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfgslrd.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS) 
+
+uts-mpi-ws-gslui: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgslui.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS) 
+
+uts-mpi-ws-gsld: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgsld.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS) 
+
+uts-mpi-ws-gslrd: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgslrd.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS) 
 
 time_poll:  time_poll.c $(RNG_SRC) $(COMMON_SRCS) stats.c mpi_workstealing.c $(QUEUE_SRCS)
 	$(MPICC) $(MPICC_OPTS) $(RNG_DEF) -o $@ $+ $(MPILD_OPTS)
@@ -110,7 +137,31 @@ uts-mpi-hws: $(RNG_SRC) uts_hws.c
 uts-upc-dcq: $(DM_SRCS) $(RNG_SRC) $(COMMON_SRCS) $(QUEUE_SRCS) upc_worksharing.c shared_dequeue.c shared_dlist.c
 	$(UPCC) $(UPCC_OPTS) $(UPCLD_OPTS) $(RNG_DEF) $(FLAGS) -o $@ $+
 
+########## DM No trace ##########
 
+uts-mpi-ws-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsnt.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+ 
+
+uts-mpi-ws-rand-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsrandnt.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+ 
+
+uts-mpi-ws-gslrd-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgslrdnt.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS) 
+
+uts-mpi-ws-gslrd-nt-fix: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgslrdntfix.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS) 
+
+uts-mpi-ws-half-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfnt.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+ 
+
+uts-mpi-ws-half-rand-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfrandnt.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+ 
+
+uts-mpi-ws-half-gslrd-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfgslrdnt.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS) 
+
+uts-mpi-ws-half-gslrd-nt-fix: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfgslrdntfix.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS) 
 ########## Shared Memory Model Implementations ##########
 
 uts-pthread: $(SHM_SRCS) $(RNG_SRC) $(COMMON_SRCS)
@@ -124,6 +175,12 @@ uts-upc: $(SHM_SRCS) $(RNG_SRC) $(COMMON_SRCS)
 
 uts-upc-enhanced: uts_upc_enhanced.c $(RNG_SRC) $(COMMON_SRCS)
 	$(UPCC) $(UPCC_OPTS) $(UPCLD_OPTS) $(RNG_DEF) $(FLAGS) -o $@ $+
+
+uts-upc-rand: uts_upc_enrand.c $(RNG_SRC) $(COMMON_SRCS)
+	$(UPCC) $(UPCC_OPTS) $(UPCLD_OPTS) $(RNG_DEF) $(FLAGS) -o $@ $+
+
+uts-upc-gslui: uts_upc_engslui.c $(RNG_SRC) $(COMMON_SRCS)
+	$(UPCC) $(UPCC_OPTS) $(UPCLD_OPTS) $(RNG_DEF) $(GSL_FLAGS) $(FLAGS) -o $@ $+ $(GSL_FLAGS) 
 
 uts-mta:  uts_dfs.c $(RNG_SRC) $(COMMON_SRCS)
 	$(CC) $(CC_OPTS) $(RNG_DEF) -D__MTA__ -o $@ $+ $(LD_OPTS)
