@@ -12,7 +12,7 @@
  *  State University.  See AUTHORS file for more information.
  *
  */
-#include <unistd.h>
+
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
@@ -91,8 +91,6 @@ static double *weights;
 static gsl_rng *rng;
 static gsl_ran_discrete_t *table;
 
-static FILE *trace;
-static int currentstatus; // 0 work, 1 idle, 2 nowork
 /*********************************************************
  *  functions                                            *
  *********************************************************/
@@ -224,9 +222,6 @@ int ensureLocalWork(StealStack *s)
  			last_steal = victims[last_steal];
 
 			DEBUG(DBG_CHUNK, printf("Thread %d: Asking thread %d for work\n", comm_rank, last_steal));
-			if(currentstatus == 0)
-				fprintf(trace,"%f i\n",MPI_Wtime());
-			currentstatus = 1;
 			++ctrl_sent;
 
 			MPI_Isend(&wrout_buff, 1, MPI_LONG, last_steal, MPIWS_WORKREQUEST, MPI_COMM_WORLD, &wrout_request);
@@ -270,8 +265,6 @@ int ensureLocalWork(StealStack *s)
 					s->localWork += s->chunk_size;
 					deq_pushBack(localQueue, node);
 				}
-				fprintf(trace,"%f w\n",MPI_Wtime());
-				currentstatus = 0;
 #ifdef TRACE
 				/* Successful Steal */
 				ss_markSteal(s, status.MPI_SOURCE);
@@ -281,7 +274,6 @@ int ensureLocalWork(StealStack *s)
 				// Received "No Work" message
 				++ctrl_recvd;
 				s->nFail++;
-				currentstatus = 2;
 			}
 	
 			// Clear on the outgoing work_request
@@ -480,18 +472,6 @@ StealStack* ss_init(int *argc, char ***argv)
 	const gsl_rng_type *T = gsl_rng_default;
 	rng = gsl_rng_alloc(T);
 	table = gsl_ran_discrete_preproc(comm_size-1,weights);
- 	char name[80];
- 	snprintf(name,80,"%s.%d.trace.%d",__FILE__,comm_size,comm_rank);
- 	trace = fopen(name,"w+");
- 	MPI_Barrier(MPI_COMM_WORLD);
- 	fprintf(trace,"%f s\n",MPI_Wtime());
-  	if(!comm_rank)
- 	{
- 		fprintf(trace,"%f w\n",MPI_Wtime());
- 		currentstatus = 0;
- 	}
- 	else
- 		currentstatus = 1;
 	return s;
 }
 
@@ -554,9 +534,6 @@ void ss_stop()
 
 void ss_finalize()
 {
-	fflush(trace);
-	fsync(fileno(trace));
-	fclose(trace);
 	MPI_Finalize();
 }
 
