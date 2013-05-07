@@ -116,9 +116,6 @@ uts-mpi-ws-half-gslrd: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfgslrd.c $(RNG_SRC) $(C
 uts-mpi-ws-gslui: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgslui.c $(RNG_SRC) $(COMMON_SRCS)
 	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS) 
 
-uts-mpi-ws-gsld: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgsld.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS) 
-
 uts-mpi-ws-gslrd: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgslrd.c $(RNG_SRC) $(COMMON_SRCS)
 	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS) 
 
