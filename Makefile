@@ -117,54 +117,66 @@ uts-upc-dcq: $(DM_SRCS) $(RNG_SRC) $(COMMON_SRCS) $(QUEUE_SRCS) upc_worksharing.
 ########## DM Trace ##########
 
 uts-mpi-ws: $(DM_SRCS) $(QUEUE_SRCS) mpi_workstealing.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -DTRACE -D__MPI__ -o $@ $+
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -DTRACE -D__VS_ORIG__ -D__MPI__ -o $@ $+
 
-uts-mpi-ws-rand: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsrand.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -DTRACE -D__MPI__ -o $@ $+
+uts-mpi-ws-rand: $(DM_SRCS) $(QUEUE_SRCS) mpi_workstealing.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -DTRACE -D__VS_RAND__ -D__MPI__ -o $@ $+
 
-uts-mpi-ws-gslui: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgslui.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -DTRACE -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+uts-mpi-ws-gslui: $(DM_SRCS) $(QUEUE_SRCS) mpi_workstealing.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -DTRACE -D__VS_GSLUI__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
 
-uts-mpi-ws-gslrd: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgslrd.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -DTRACE -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+uts-mpi-ws-gslrd: $(DM_SRCS) $(QUEUE_SRCS) mpi_workstealing.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -DTRACE -D__VS_GLSRD__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+
+uts-mpi-ws-gslrd-fix: $(DM_SRCS) $(QUEUE_SRCS) mpi_workstealing.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -DTRACE -D__VS_GLSRD__ -D__VS_FIX__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
 
 uts-mpi-ws-half: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -DTRACE -D__MPI__ -o $@ $+
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -DTRACE -D__VS_ORIG__ -D__SS_HALF__ -D__MPI__ -o $@ $+
 
-uts-mpi-ws-half-rand: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfrand.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -DTRACE -D__MPI__ -o $@ $+
+uts-mpi-ws-half-rand: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -DTRACE -D__VS_RAND__ -D__SS_HALF__ -D__MPI__ -o $@ $+
 
-uts-mpi-ws-half-gslrd: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfgslrd.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -DTRACE -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+uts-mpi-ws-half-gslui: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -DTRACE -D__VS_GSLUI__ -D__SS_HALF__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+
+uts-mpi-ws-half-gslrd: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -DTRACE -D__VS_GLSRD__ -D__SS_HALF__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+
+uts-mpi-ws-half-gslrd-fix: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -DTRACE -D__VS_GLSRD__ -D__SS_HALF__ -D__VS_FIX__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
 
 ########## DM No trace ##########
 
 uts-mpi-ws-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_workstealing.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS)  -D__VS_ORIG__ -D__MPI__ -o $@ $+
 
-uts-mpi-ws-rand-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsrand.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+
+uts-mpi-ws-rand-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_workstealing.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS)  -D__VS_RAND__ -D__MPI__ -o $@ $+
 
-uts-mpi-ws-gslui-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgslui.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+uts-mpi-ws-gslui-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_workstealing.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS)  -D__VS_GSLUI__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
 
-uts-mpi-ws-gslrd-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgslrd.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+uts-mpi-ws-gslrd-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_workstealing.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS)  -D__VS_GLSRD__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
 
-uts-mpi-ws-gslrd-nt-fix: $(DM_SRCS) $(QUEUE_SRCS) mpi_wsgslrdfix.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+uts-mpi-ws-gslrd-nt-fix: $(DM_SRCS) $(QUEUE_SRCS) mpi_workstealing.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS)  -D__VS_GLSRD__ -D__VS_FIX__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
 
 uts-mpi-ws-half-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS)  -D__VS_ORIG__ -D__SS_HALF__ -D__MPI__ -o $@ $+
 
-uts-mpi-ws-half-rand-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfrand.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+
+uts-mpi-ws-half-rand-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS)  -D__VS_RAND__ -D__SS_HALF__ -D__MPI__ -o $@ $+
 
-uts-mpi-ws-half-gslrd-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfgslrd.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+uts-mpi-ws-half-gslui-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS)  -D__VS_GSLUI__ -D__SS_HALF__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
 
-uts-mpi-ws-half-gslrd-nt-fix: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalfgslrdfix.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS) -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+uts-mpi-ws-half-gslrd-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS)  -D__VS_GLSRD__ -D__SS_HALF__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
+
+uts-mpi-ws-half-gslrd-nt-fix: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
+	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS)  -D__VS_GLSRD__ -D__SS_HALF__ -D__VS_FIX__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
 
 ########## Shared Memory Model Implementations ##########
 
@@ -197,7 +209,7 @@ uts-gpshmem: uts_gpshmem.c $(RNG_SRC) $(COMMON_SRCS)
 
 
 clean: config
-	rm -f *.o $(TARGETS) tags
+	rm -f *.o $(TARGETS) tags uts-mpi-*
 
 distclean: clean
 	rm -f $(CONFFILE)

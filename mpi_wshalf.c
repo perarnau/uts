@@ -21,6 +21,7 @@
 #include "uts_dm.h"
 #include "dequeue.h"
 #include "ctrk.h"
+#include "victimselect.h"
 
 #define DBG_GEN    1
 #define DBG_CHUNK  2
@@ -95,7 +96,7 @@ void ss_abort(int error)
 
 char * ss_get_par_description()
 {
-	return "MPI Workstealing (Half Round Robin)";
+	return vsdescript();
 }
 
 /** Make progress on any outstanding WORKREQUESTs or WORKRESPONSEs */
@@ -207,8 +208,7 @@ int ensureLocalWork(StealStack *s)
 		if (wrout_request == MPI_REQUEST_NULL && my_color != PINK) {
 		
 			/* Send the request and wait for a work response */
-			last_steal = (last_steal + 1) % comm_size;
-			if (last_steal == comm_rank) last_steal = (last_steal + 1) % comm_size;
+			last_steal = selectvictim(comm_rank,comm_size,last_steal);
 
 			DEBUG(DBG_CHUNK, printf("Thread %d: Asking thread %d for work\n", comm_rank, last_steal));
 			++ctrl_sent;
@@ -436,7 +436,8 @@ StealStack* ss_init(int *argc, char ***argv)
 
 	// Set a default polling interval
 	polling_interval = pollint_default;
-	
+
+	vsinit(comm_rank,comm_size);
 	return s;
 }
 
