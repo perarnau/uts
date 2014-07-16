@@ -11,15 +11,9 @@ DM_SRCS     = uts_dm.c stats.c
 QUEUE_SRCS  = dequeue.c dlist.c
 SHM_SRCS    = uts_shm.c
 
-TARGETS     = uts-seq uts-dfs uts-stat          \
-              uts-omp uts-pthread               \
-              uts-upc uts-upc-dcq               \
-	      uts-upc-enhanced                  \
-              uts-shmem uts-gpshmem             \
-              uts-mpi-wm uts-mpi-wm-nb          \
-	      uts-mpi-ws uts-mpi-hws            \
-              uts-mta uts-gtc time_rng time_poll\
-              uts-dot
+TARGETS     = uts-seq           \
+	      uts-mpi-ws        \
+              time_rng time_poll
 
 # ------------------------------------- #
 # Set Random Number Generator sources:
@@ -73,15 +67,6 @@ tags:
 uts-seq:  $(SHM_SRCS) $(RNG_SRC) $(COMMON_SRCS)
 	$(CC) $(CC_OPTS) $(LD_OPTS) $(RNG_DEF) $(FLAGS) -o $@ $+
 
-uts-dfs:  uts_dfs.c $(RNG_SRC) $(COMMON_SRCS)
-	$(CC) $(CC_OPTS) $(LD_OPTS) $(RNG_DEF) -o $@ $+
-
-uts-dot:  uts_dot.c $(RNG_SRC) $(COMMON_SRCS)
-	$(CC) $(CC_OPTS) $(LD_OPTS) $(RNG_DEF) -o $@ $+
-
-uts-stat: $(SHM_SRCS) $(RNG_SRC) $(COMMON_SRCS)
-	$(CC) $(CC_OPTS) $(LD_OPTS) $(RNG_DEF) -DUTS_STAT -o $@ $+
-
 time_rng:  time_rng.c $(RNG_SRC) $(COMMON_SRCS)
 	$(CC) $(CC_OPTS) $(RNG_DEF) -o $@ $+ $(LD_OPTS)
 
@@ -90,29 +75,8 @@ mpi-coords: mpi_coords.c
 
 ########## Distributed Memory Model Implementations ##########
 
-uts-mpi: uts-mpi-wm uts-mpi-ws
-
-uts-mpi-wm: $(DM_SRCS) $(QUEUE_SRCS) mpi_worksharing.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -o $@ $+
-
-uts-mpi-wm-nb: $(DM_SRCS) $(QUEUE_SRCS) mpi_worksharing.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -DNONBLOCK -D__MPI__ -o $@ $+
-
-
 time_poll:  time_poll.c $(RNG_SRC) $(COMMON_SRCS) stats.c mpi_workstealing.c $(QUEUE_SRCS)
 	$(MPICC) $(MPICC_OPTS) $(RNG_DEF) -o $@ $+ $(MPILD_OPTS)
-
-uts-gtc: $(DM_SRCS) gtc_ldbal.c $(RNG_SRC) $(COMMON_SRCS)
-	$(MPICC) $(MPICC_OPTS) $(RNG_DEF) $(FLAGS) -DUSING_GTC -I$(ARMCI_INCLUDE) -I$(GA_INCLUDE) -I$(SCIOTO_INCLUDE) -D__MPI__ -c $(RNG_SRC)
-	$(MPICC) $(MPICC_OPTS) $(RNG_DEF) $(FLAGS) -DUSING_GTC -I$(ARMCI_INCLUDE) -I$(GA_INCLUDE) -I$(SCIOTO_INCLUDE) -D__MPI__ -c $+
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -DUSING_GTC -I$(ARMCI_INCLUDE) -I$(GA_INCLUDE) -I$(SCIOTO_INCLUDE) \
-        -L$(ARMCI_LIBS) -L$(GA_LIBS) -L$(SCIOTO_LIBS) -D__MPI__ -o $@ $(+:.c=.o) -ltc -lsynch -larmci -lm
-
-uts-mpi-hws: $(RNG_SRC) uts_hws.c
-	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) -D__MPI__ -D__PTHREADS__ -lpthread -o $@ $+
-
-uts-upc-dcq: $(DM_SRCS) $(RNG_SRC) $(COMMON_SRCS) $(QUEUE_SRCS) upc_worksharing.c shared_dequeue.c shared_dlist.c
-	$(UPCC) $(UPCC_OPTS) $(UPCLD_OPTS) $(RNG_DEF) $(FLAGS) -o $@ $+
 
 ########## DM Trace ##########
 
@@ -178,22 +142,7 @@ uts-mpi-ws-half-gslrd-nt: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COM
 uts-mpi-ws-half-gslrd-nt-fix: $(DM_SRCS) $(QUEUE_SRCS) mpi_wshalf.c $(RNG_SRC) $(COMMON_SRCS)
 	$(MPICC) $(MPICC_OPTS) $(MPILD_OPTS) $(RNG_DEF) $(FLAGS) $(GSL_FLAGS)  -D__VS_GLSRD__ -D__SS_HALF__ -D__VS_FIX__ -D__MPI__ -o $@ $+ $(GSL_FLAGS)
 
-########## Shared Memory Model Implementations ##########
-
-uts-pthread: $(SHM_SRCS) $(RNG_SRC) $(COMMON_SRCS)
-	$(CC) $(CC_OPTS) $(LD_OPTS) $(RNG_DEF) $(FLAGS) -D__PTHREADS__ -lpthread -o $@ $+
-
-uts-omp: $(SHM_SRCS) $(RNG_SRC) $(COMMON_SRCS)
-	$(OMPCC) $(OMPCC_OPTS) $(OMPLD_OPTS) $(RNG_DEF) $(FLAGS) -o $@ $+
-
-uts-upc: $(SHM_SRCS) $(RNG_SRC) $(COMMON_SRCS)
-	$(UPCC) $(UPCC_OPTS) $(UPCLD_OPTS) $(RNG_DEF) $(FLAGS) -o $@ $+
-
-uts-upc-enhanced: uts_upc_enhanced.c $(RNG_SRC) $(COMMON_SRCS)
-	$(UPCC) $(UPCC_OPTS) $(UPCLD_OPTS) $(RNG_DEF) $(FLAGS) -o $@ $+
-
-uts-upc-rand: uts_upc_enrand.c $(RNG_SRC) $(COMMON_SRCS)
-	$(UPCC) $(UPCC_OPTS) $(UPCLD_OPTS) $(RNG_DEF) $(FLAGS) -o $@ $+
+########## DM TD No trace ##########
 
 uts-upc-gslui: uts_upc_engslui.c $(RNG_SRC) $(COMMON_SRCS)
 	$(UPCC) $(UPCC_OPTS) $(UPCLD_OPTS) $(RNG_DEF) $(GSL_FLAGS) $(FLAGS) -o $@ $+ $(GSL_FLAGS) 
