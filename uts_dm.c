@@ -266,6 +266,7 @@ void showStats() {
       printf("  # chunks reacquired = %d\n", stealStack[i].nAcquire);
       printf("  # chunks stolen     = %d\n", stealStack[i].nSteal);
       printf("  # failed steals     = %d\n", stealStack[i].nFail);
+      printf("  # nodes created     = %d\n", stealStack[i].nCreate);
       printf("  maximum stack depth = %d\n", stealStack[i].maxStackDepth);
       printf("  work time           = %.6f secs (%d sessions)\n",
              stealStack[i].time[SS_WORK], stealStack[i].entries[SS_WORK]);

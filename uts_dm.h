@@ -68,7 +68,7 @@ struct stealStack_t {
 	int work_size;      /* size of a work node*/
 	int chunk_size;     /* amount of work in a steal stack node, also the granularity of steals*/
 	counter_t nNodes, nLeaves, nAcquire, nRelease, nSteal, nFail;  /* stats */
-
+	counter_t nCreate; /* number of nodes created locally */
 	int maxStackDepth;
 	int maxTreeDepth;
 	

@@ -427,6 +427,7 @@ StealStack* ss_init(int *argc, char ***argv)
 	s->nRelease   = 0;
 	s->nSteal     = 0;
 	s->nFail      = 0;
+	s->nCreate      = 0;
 
         s->maxStackDepth = 0;
         s->maxTreeDepth  = 0;
@@ -508,6 +509,7 @@ void ss_put_work(StealStack *s, void* node_c)
 {
 	StealStackNode* n;
 	void *work;
+	s->nCreate++;
 
 	/* If the stack is empty, push an empty StealStackNode. */
 	if (deq_isEmpty(localQueue)) {
